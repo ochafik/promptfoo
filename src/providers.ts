@@ -374,7 +374,7 @@ export async function loadApiProvider(
   } else if (providerPath.startsWith('webhook:')) {
     const webhookUrl = providerPath.substring('webhook:'.length);
     ret = new WebhookProvider(webhookUrl, providerOptions);
-  } else if (providerPath === 'llama' || providerPath.startsWith('llama:')) {
+  } else if (/llama(\.cpp)?(:.*)?/.test(providerPath)) {
     const modelName = providerPath.split(':')[1];
     ret = new LlamaProvider(modelName, providerOptions);
   } else if (providerPath.startsWith('ollama:')) {

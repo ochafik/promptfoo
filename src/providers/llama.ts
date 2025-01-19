@@ -64,10 +64,7 @@ export class LlamaProvider implements ApiProvider {
     return `[Llama Provider ${this.modelName}]`;
   }
 
-  async callApi(
-      prompt: string,
-      context?: CallApiContextParams
-  ): Promise<ProviderResponse> {
+  async callApi(prompt: string, context?: CallApiContextParams): Promise<ProviderResponse> {
     const body = {
       prompt,
       n_predict: this.config?.n_predict || 512,
