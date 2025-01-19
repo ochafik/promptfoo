@@ -1,7 +1,9 @@
+import { maybeLoadFromExternalFile, renderVarsInObject } from 'src/util';
 import { fetchWithCache } from '../cache';
 import { getEnvString } from '../envars';
 import logger from '../logger';
-import type { ApiProvider, ProviderResponse } from '../types';
+import type { ApiProvider, CallApiContextParams, ProviderResponse } from '../types';
+import { OpenAiTool } from './openaiUtil';
 import { REQUEST_TIMEOUT_MS } from './shared';
 
 interface LlamaCompletionOptions {
@@ -22,6 +24,25 @@ interface LlamaCompletionOptions {
   seed?: number;
   ignore_eos?: boolean;
   logit_bias?: Record<string, number>;
+  tools?: OpenAiTool[];
+  tool_choice?: 'none' | 'auto' | 'required' | { type: 'function'; function?: { name: string } };
+  response_format?:
+    | {
+        type: 'json_object';
+      }
+    | {
+        type: 'json_schema';
+        json_schema: {
+          name: string;
+          strict: boolean;
+          schema: {
+            type: 'object';
+            properties: Record<string, any>;
+            required?: string[];
+            additionalProperties: false;
+          };
+        };
+      };
 }
 
 export class LlamaProvider implements ApiProvider {
@@ -43,7 +64,10 @@ export class LlamaProvider implements ApiProvider {
     return `[Llama Provider ${this.modelName}]`;
   }
 
-  async callApi(prompt: string): Promise<ProviderResponse> {
+  async callApi(
+      prompt: string,
+      context?: CallApiContextParams
+  ): Promise<ProviderResponse> {
     const body = {
       prompt,
       n_predict: this.config?.n_predict || 512,
@@ -63,6 +87,17 @@ export class LlamaProvider implements ApiProvider {
       seed: this.config?.seed,
       ignore_eos: this.config?.ignore_eos,
       logit_bias: this.config?.logit_bias,
+      ...(this.config?.tools
+        ? { tools: maybeLoadFromExternalFile(renderVarsInObject(this.config.tools, context?.vars)) }
+        : {}),
+      ...(this.config?.tool_choice ? { tool_choice: this.config.tool_choice } : {}),
+      ...(this.config?.response_format
+        ? {
+            response_format: maybeLoadFromExternalFile(
+              renderVarsInObject(this.config.response_format, context?.vars),
+            ),
+          }
+        : {}),
     };
 
     const url = getEnvString('LLAMA_BASE_URL') || 'http://localhost:8080';
